@@ -32,9 +32,9 @@ dependencies {
 jenkinsPlugin {
 //    coreVersion = "1.498"
     coreVersion = "1.609"
-    displayName = "Integration with the MicroDocs server for publishing and detecting problems"
-    url = "http://wiki.jenkins-ci.org/display/JENKINS/SomePluginPage"
-    gitHubUrl = "https://github.com/MaxxtonGroup/microservice-documentation-tool"
+    displayName = "Integration with the MicroDocs server for publishing and detecting compatibility problems"
+    url = "http://wiki.jenkins-ci.org/display/JENKINS/MICRODOCS+INTEGRATION+PLUGIN"
+    gitHubUrl = "https://github.com/MaxxtonGroup/microdocs-integration-plugin"
     shortName = "microdocs-integration"
 
     // The developers section is optional, and corresponds to the POM developers section.
