@@ -245,42 +245,44 @@ public class MicroDocsChecker extends Builder {
     StashClient stashClient = new StashClient(descriptor.getMicroDocsStashUrl(), usernamePasswordCredentials);
 
     // collect problems with each file and line number
-    Map<String, Map<Integer, List<CheckProblem>>> problemsMap = new HashMap();
 
-    for(CheckProblem problem : response.getProblems()){
-      if(problem.getPath() == null){
-        stashClient.postPullRequestComment(buildInfo, problem.getLevel() + ": " + problem.getMessage());
-      }else {
-        String file = new File(microDocsSourceFolder, problem.getPath()).getPath();
-        if (!problemsMap.containsKey(file)) {
-          problemsMap.put(file, new HashMap());
-        }
-
-        Map<Integer, List<CheckProblem>> fileMap = problemsMap.get(file);
-        if (!fileMap.containsKey(problem.getLineNumber())) {
-          fileMap.put(problem.getLineNumber(), new ArrayList());
-        }
-        List<CheckProblem> problemList = fileMap.get(problem.getLineNumber());
-        problemList.add(problem);
-      }
-    }
-
-    for(String file : problemsMap.keySet()){
-      for(int lineNumber : problemsMap.get(file).keySet()){
-        String comment = "";
-        for(CheckProblem problem : problemsMap.get(file).get(lineNumber)){
-          String message = problem.getLevel() + ": " + problem.getMessage();
-          if(problem.getClient() != null){
-            message = "**Breaking change detected with [" + problem.getClient().getTitle() + "](" + problem.getClient().getSourceLink() + "):** " + message;
+    if (response.getProblems() != null) {
+      Map<String, Map<Integer, List<CheckProblem>>> problemsMap = new HashMap();
+      for (CheckProblem problem : response.getProblems()) {
+        if (problem.getPath() == null) {
+          stashClient.postPullRequestComment(buildInfo, problem.getLevel() + ": " + problem.getMessage());
+        } else {
+          String file = new File(microDocsSourceFolder, problem.getPath()).getPath();
+          if (!problemsMap.containsKey(file)) {
+            problemsMap.put(file, new HashMap());
           }
-          comment += message + "\n";
-        }
-        String quote = QuoteGenerator.randomQuote();
-        comment += "\n> " + quote;
 
-        int commentId = stashClient.postPullRequestComment(buildInfo, comment, file, lineNumber);
-        for(CheckProblem problem : problemsMap.get(file).get(lineNumber)){
-          stashClient.postTask(problem.getMessage(), commentId);
+          Map<Integer, List<CheckProblem>> fileMap = problemsMap.get(file);
+          if (!fileMap.containsKey(problem.getLineNumber())) {
+            fileMap.put(problem.getLineNumber(), new ArrayList());
+          }
+          List<CheckProblem> problemList = fileMap.get(problem.getLineNumber());
+          problemList.add(problem);
+        }
+      }
+
+      for (String file : problemsMap.keySet()) {
+        for (int lineNumber : problemsMap.get(file).keySet()) {
+          String comment = "";
+          for (CheckProblem problem : problemsMap.get(file).get(lineNumber)) {
+            String message = problem.getLevel() + ": " + problem.getMessage();
+            if (problem.getClient() != null) {
+              message = "**Breaking change detected with [" + problem.getClient().getTitle() + "](" + problem.getClient().getSourceLink() + "):** " + message;
+            }
+            comment += message + "\n";
+          }
+          String quote = QuoteGenerator.randomQuote();
+          comment += "\n> " + quote;
+
+          int commentId = stashClient.postPullRequestComment(buildInfo, comment, file, lineNumber);
+          for (CheckProblem problem : problemsMap.get(file).get(lineNumber)) {
+            stashClient.postTask(problem.getMessage(), commentId);
+          }
         }
       }
     }

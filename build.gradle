@@ -15,7 +15,6 @@ buildscript {
 apply plugin: 'org.jenkins-ci.jpi'
 
 repositories {
-    mavenLocal()
     mavenCentral()
 }
 
@@ -31,7 +30,7 @@ dependencies {
 
 jenkinsPlugin {
 //    coreVersion = "1.498"
-    coreVersion = "1.609"
+    coreVersion = "1.609.3"
     displayName = "Integration with the MicroDocs server for publishing and detecting compatibility problems"
     url = "http://wiki.jenkins-ci.org/display/JENKINS/MICRODOCS+INTEGRATION+PLUGIN"
     gitHubUrl = "https://github.com/MaxxtonGroup/microdocs-integration-plugin"
