@@ -102,6 +102,7 @@ public class MicroDocsChecker extends Builder {
   public static class Descriptor extends BuildStepDescriptor<Builder> {
 
     private String microDocsServerUrl;
+    private String microDocsServerCredentialsId;
     private String microDocsStashUrl;
     private String microDocsStashCredentialsId;
 
@@ -112,6 +113,10 @@ public class MicroDocsChecker extends Builder {
     protected Descriptor(boolean load) {
       if (load)
         load();
+    }
+
+    public String getMicroDocsServerCredentialsId() {
+      return microDocsServerCredentialsId;
     }
 
     public String getMicroDocsServerUrl() {
@@ -126,6 +131,19 @@ public class MicroDocsChecker extends Builder {
       return microDocsStashCredentialsId;
     }
 
+    public ListBoxModel doFillMicroDocsServerCredentialsIdItems(@AncestorInPath Item project) {
+
+      if (project != null && project.hasPermission(Item.CONFIGURE)) {
+        return new StandardListBoxModel().withEmptySelection()
+            .withMatching(new MicroDocsCredentialsMatcher(), CredentialsProvider.lookupCredentials(StandardCredentials.class, project, ACL.SYSTEM, new ArrayList<DomainRequirement>()));
+
+      } else if (Jenkins.getInstance().hasPermission(Item.CONFIGURE)) {
+        return new StandardListBoxModel().withEmptySelection()
+            .withMatching(new MicroDocsCredentialsMatcher(), CredentialsProvider.lookupCredentials(StandardCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, new ArrayList<DomainRequirement>()));
+      }
+
+      return new StandardListBoxModel();
+    }
     public ListBoxModel doFillMicroDocsStashCredentialsIdItems(@AncestorInPath Item project) {
 
       if (project != null && project.hasPermission(Item.CONFIGURE)) {
@@ -156,6 +174,7 @@ public class MicroDocsChecker extends Builder {
       // to persist global configuration information,
       // set that to properties and call save().
       microDocsServerUrl = formData.getString("microDocsServerUrl");
+      microDocsServerCredentialsId = formData.getString("microDocsServerCredentialsId");
       microDocsStashUrl = formData.getString("microDocsStashUrl");
       microDocsStashCredentialsId = formData.getString("microDocsStashCredentialsId");
 
@@ -218,10 +237,13 @@ public class MicroDocsChecker extends Builder {
     }
 
     CheckResponse response = null;
+    UsernamePasswordCredentials usernamePasswordCredentials = getCredentials(UsernamePasswordCredentials.class, build.getProject(), descriptor.getMicroDocsStashCredentialsId());
+    ServerConfiguration configuration = new ServerConfiguration(descriptor.getMicroDocsServerUrl(), usernamePasswordCredentials.getUsername(), usernamePasswordCredentials.getPassword());
+
     if (microDocsPublish) {
-      response = MicroDocsPublisher.publishProject(new ServerConfiguration(descriptor.getMicroDocsServerUrl()), reportFile, microDocsProjectName, microDocsGroupName, null, microDocsFailBuild);
+      response = MicroDocsPublisher.publishProject(configuration, reportFile, microDocsProjectName, microDocsGroupName, null, microDocsFailBuild);
     } else {
-      response = MicroDocsPublisher.checkProject(new ServerConfiguration(descriptor.getMicroDocsServerUrl()), reportFile, microDocsProjectName);
+      response = MicroDocsPublisher.checkProject(configuration, reportFile, microDocsProjectName);
     }
 
     boolean isOk = MicroDocsPublisher.printCheckResponse(response, new File(microDocsSourceFolder));
@@ -240,7 +262,7 @@ public class MicroDocsChecker extends Builder {
   private void commentToStash(CheckResponse response, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException {
     Descriptor descriptor = (Descriptor) getDescriptor();
     BuildInfo buildInfo = getBuildInfo(build, listener);
-    UsernamePasswordCredentials usernamePasswordCredentials = getCredentials(UsernamePasswordCredentials.class, build.getProject());
+    UsernamePasswordCredentials usernamePasswordCredentials = getCredentials(UsernamePasswordCredentials.class, build.getProject(), descriptor.getMicroDocsStashCredentialsId());
 
     StashClient stashClient = new StashClient(descriptor.getMicroDocsStashUrl(), usernamePasswordCredentials);
 
@@ -335,7 +357,7 @@ public class MicroDocsChecker extends Builder {
    * @param project The hierarchical project context within which the credentials are searched for.
    * @return The first credentials of the given type that are found withing the project hierarchy, or null otherwise.
    */
-  private <T extends Credentials> T getCredentials(final Class<T> clazz, final Item project) {
+  private <T extends Credentials> T getCredentials(final Class<T> clazz, final Item project, String credentialsId) {
 
     T credentials = null;
 
@@ -344,7 +366,6 @@ public class MicroDocsChecker extends Builder {
     }
     Descriptor descriptor = (Descriptor) getDescriptor();
 
-    String credentialsId = descriptor.getMicroDocsStashCredentialsId();
     if (StringUtils.isNotBlank(credentialsId) && clazz != null && project != null) {
       credentials = CredentialsMatchers.firstOrNull(lookupCredentials(clazz, project, ACL.SYSTEM, new ArrayList<DomainRequirement>()), CredentialsMatchers.withId(credentialsId));
     }
