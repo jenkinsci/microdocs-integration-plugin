@@ -9,6 +9,7 @@ import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.ObjectMapper;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import com.mashape.unirest.request.HttpRequestWithBody;
 import com.maxxton.microdocs.crawler.ErrorReporter;
 import com.maxxton.microdocs.jenkins.notifier.BuildInfo;
 import com.maxxton.microdocs.jenkins.notifier.stash.domain.*;
@@ -83,11 +84,16 @@ public class StashClient {
       String url = stashUrl + "/rest/api/1.0/projects/" + buildInfo.getProjectKey() + "/repos/" + buildInfo.getRepositoryName() + "/pull-requests/" + buildInfo.getPullRequestId() + "/comments";
       ErrorReporter.get().printNotice("post " + url);
       initObjectMapper();
-      HttpResponse<JsonNode> response = Unirest.post(url)
-          .basicAuth(credentials.getUsername(), credentials.getPassword().getPlainText())
-          .header("content-type", "application/json")
+
+      HttpRequestWithBody request = Unirest.post(url)
+          .header("content-type", "application/json");
+      if(credentials != null) {
+        request.basicAuth(credentials.getUsername(), credentials.getPassword().getPlainText());
+      }
+      HttpResponse<JsonNode> response = request
           .body(comment)
           .asJson();
+
       if (response.getStatus() != 201) {
         throw new IOException("Wrong response status " + response.getStatus() + ", expected 200");
       }

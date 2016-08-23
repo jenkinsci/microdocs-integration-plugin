@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    compile ("com.maxxton.microdocs:microdocs-core-java:1.1")
+    compile ("com.maxxton:microdocs-core-java:1.1")
     compile ("com.fasterxml.jackson.core:jackson-databind:2.7.5")
     compile ("com.mashape.unirest:unirest-java:1.4.9")
 

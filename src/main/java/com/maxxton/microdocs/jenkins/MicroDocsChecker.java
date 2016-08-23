@@ -54,16 +54,18 @@ public class MicroDocsChecker extends Builder {
   private final String microDocsReportFile;
   private final String microDocsProjectName;
   private final String microDocsGroupName;
+  private final String microDocsEnvironments;
   private final String microDocsSourceFolder;
   private final boolean microDocsFailBuild;
   private final boolean microDocsPublish;
   private final boolean microDocsNotifyPullRequest;
 
   @DataBoundConstructor
-  public MicroDocsChecker(String microDocsReportFile, String microDocsProjectName, String microDocsGroupName, String microDocsSourceFolder, boolean microDocsFailBuild, boolean microDocsPublish, boolean microDocsNotifyPullRequest) {
+  public MicroDocsChecker(String microDocsReportFile, String microDocsProjectName, String microDocsGroupName, String microDocsEnvironments, String microDocsSourceFolder, boolean microDocsFailBuild, boolean microDocsPublish, boolean microDocsNotifyPullRequest) {
     this.microDocsReportFile = microDocsReportFile;
     this.microDocsProjectName = microDocsProjectName;
     this.microDocsGroupName = microDocsGroupName;
+    this.microDocsEnvironments = microDocsEnvironments;
     this.microDocsFailBuild = microDocsFailBuild;
     this.microDocsPublish = microDocsPublish;
     this.microDocsSourceFolder = microDocsSourceFolder;
@@ -80,6 +82,10 @@ public class MicroDocsChecker extends Builder {
 
   public String getMicroDocsGroupName() {
     return microDocsGroupName;
+  }
+
+  public String getMicroDocsEnvironments() {
+    return microDocsEnvironments;
   }
 
   public String getMicroDocsSourceFolder() {
@@ -236,14 +242,14 @@ public class MicroDocsChecker extends Builder {
       return false;
     }
 
-    CheckResponse response = null;
-    UsernamePasswordCredentials usernamePasswordCredentials = getCredentials(UsernamePasswordCredentials.class, build.getProject(), descriptor.getMicroDocsStashCredentialsId());
-    ServerConfiguration configuration = new ServerConfiguration(descriptor.getMicroDocsServerUrl(), usernamePasswordCredentials.getUsername(), usernamePasswordCredentials.getPassword());
+    UsernamePasswordCredentials credentials = getCredentials(UsernamePasswordCredentials.class, build.getProject(), descriptor.getMicroDocsStashCredentialsId());
+    ServerConfiguration configuration = new ServerConfiguration(descriptor.getMicroDocsServerUrl(), credentials != null ? credentials.getUsername(): null, credentials != null ? credentials.getPassword().getPlainText() : null);
 
+    CheckResponse response;
     if (microDocsPublish) {
-      response = MicroDocsPublisher.publishProject(configuration, reportFile, microDocsProjectName, microDocsGroupName, null, microDocsFailBuild);
+      response = MicroDocsPublisher.publishProject(configuration, reportFile, microDocsProjectName, microDocsGroupName, null, microDocsFailBuild, microDocsEnvironments);
     } else {
-      response = MicroDocsPublisher.checkProject(configuration, reportFile, microDocsProjectName);
+      response = MicroDocsPublisher.checkProject(configuration, reportFile, microDocsProjectName, microDocsEnvironments);
     }
 
     boolean isOk = MicroDocsPublisher.printCheckResponse(response, new File(microDocsSourceFolder));

@@ -9,11 +9,15 @@
     <f:textbox/>
   </f:entry>
 
-  <f:entry title="Source folder" field="microDocsSourceFolder" description="Add MicroDocs source folder (eg. /src/main/java)">
+  <f:entry title="Environment" field="microDocsEnvironments" description="Define the environments (eg. develop / production)">
     <f:textbox/>
   </f:entry>
 
-  <f:entry title="MicroDocs Report file" field="microDocsReportFile" description="Add MicroDocs report file (eg. /build/reports/microdocs.json)">
+  <f:entry title="Source folder" field="microDocsSourceFolder" description="Add MicroDocs source folder (eg. src/main/java)">
+    <f:textbox/>
+  </f:entry>
+
+  <f:entry title="MicroDocs Report file" field="microDocsReportFile" description="Add MicroDocs report file (eg. build/reports/microdocs.json)">
     <f:textbox/>
   </f:entry>
 
@@ -25,7 +29,7 @@
     <f:checkbox />
   </f:entry>
 
-  <f:entry title="	Post comments into pull request" field="microDocsNotifyPullRequest" description="Post a comment into the corresponding pull request">
+  <f:entry title="Post comments into pull request" field="microDocsNotifyPullRequest" description="Post a comment into the corresponding pull request">
     <f:checkbox />
   </f:entry>
 
