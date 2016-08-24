@@ -73,7 +73,7 @@ public class StashClient {
       String unixPath = path.replaceAll("\\\\", "/");
       anchor.setPath(unixPath);
       anchor.setSourcePath(unixPath);
-      if (lineNumber != null) {
+      if (lineNumber != null && lineNumber > 0) {
         anchor.setLine(lineNumber);
         anchor.setLineType(StashLineType.CONTEXT);
       }
@@ -95,7 +95,8 @@ public class StashClient {
           .asJson();
 
       if (response.getStatus() != 201) {
-        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200");
+        String requestBody = getObjectMapper().writeValueAsString(comment);
+        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200. Request body: " + requestBody);
       }
       return response.getBody().getObject().getInt("id");
     } catch (UnirestException e) {
@@ -129,7 +130,8 @@ public class StashClient {
           .body(task)
           .asJson();
       if (response.getStatus() != 201) {
-        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200");
+        String requestBody = getObjectMapper().writeValueAsString(task);
+        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200. Request body: " + requestBody);
       }
       return response.getBody().getObject().getInt("id");
     } catch (UnirestException e) {
@@ -138,9 +140,7 @@ public class StashClient {
   }
 
   private static void initObjectMapper() {
-    com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
-    jacksonObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    jacksonObjectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper = getObjectMapper();
     Unirest.setObjectMapper(new ObjectMapper() {
 
       public <T> T readValue(String value, Class<T> valueType) {
@@ -159,6 +159,13 @@ public class StashClient {
         }
       }
     });
+  }
+
+  private static com.fasterxml.jackson.databind.ObjectMapper getObjectMapper(){
+    com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    jacksonObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    jacksonObjectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    return jacksonObjectMapper;
   }
 
 }
