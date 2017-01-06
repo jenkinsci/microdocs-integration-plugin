@@ -111,6 +111,7 @@ public class MicroDocsChecker extends Builder {
     private String microDocsServerCredentialsId;
     private String microDocsStashUrl;
     private String microDocsStashCredentialsId;
+    private boolean microDocsRandomQuote;
 
     public Descriptor() {
       this(true);
@@ -135,6 +136,10 @@ public class MicroDocsChecker extends Builder {
 
     public String getMicroDocsStashCredentialsId() {
       return microDocsStashCredentialsId;
+    }
+
+    public boolean isMicroDocsRandomQuote() {
+      return microDocsRandomQuote;
     }
 
     public ListBoxModel doFillMicroDocsServerCredentialsIdItems(@AncestorInPath Item project) {
@@ -255,7 +260,11 @@ public class MicroDocsChecker extends Builder {
     boolean isOk = MicroDocsPublisher.printCheckResponse(response, new File(microDocsSourceFolder));
 
     if (this.microDocsNotifyPullRequest) {
-      commentToStash(response, build, listener);
+      if(descriptor.getMicroDocsStashUrl() != null && !descriptor.getMicroDocsStashUrl().isEmpty()) {
+        commentToStash(response, build, listener);
+      }else{
+        ErrorReporter.get().printNotice("Cannot publish results to Stash: Stash url is missing");
+      }
     }
 
     if (!isOk && this.microDocsFailBuild) {
@@ -304,8 +313,10 @@ public class MicroDocsChecker extends Builder {
             }
             comment += message + "\n";
           }
-          String quote = QuoteGenerator.randomQuote();
-          comment += "\n> " + quote;
+          if(descriptor.isMicroDocsRandomQuote()) {
+            String quote = QuoteGenerator.randomQuote();
+            comment += "\n> " + quote;
+          }
 
           int commentId = stashClient.postPullRequestComment(buildInfo, comment, file, lineNumber);
           for (CheckProblem problem : problemsMap.get(file).get(lineNumber)) {
@@ -320,6 +331,12 @@ public class MicroDocsChecker extends Builder {
     EnvVars envVars = build.getEnvironment(listener);
     String pullRequestUrl = envVars.get("PULL_REQUEST_URL");
     String pullRequestId = envVars.get("PULL_REQUEST_ID");
+    if(pullRequestUrl == null || pullRequestUrl.isEmpty()){
+      throw new ConfigurationException("variable 'PULL_REQUEST_URL' is missing or empty");
+    }
+    if(pullRequestId == null || pullRequestId.isEmpty()){
+      throw new ConfigurationException("variable 'PULL_REQUEST_ID' is missing or empty");
+    }
 
     return new BuildInfo(
         getProjectKey(pullRequestUrl),

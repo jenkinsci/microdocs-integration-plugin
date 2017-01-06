@@ -85,6 +85,9 @@ public class StashClient {
       ErrorReporter.get().printNotice("post " + url);
       initObjectMapper();
 
+      String requestBody = getObjectMapper().writeValueAsString(comment);
+      ErrorReporter.get().printNotice("body: (application/json) " + requestBody);
+
       HttpRequestWithBody request = Unirest.post(url)
           .header("content-type", "application/json");
       if(credentials != null) {
@@ -95,8 +98,7 @@ public class StashClient {
           .asJson();
 
       if (response.getStatus() != 201) {
-        String requestBody = getObjectMapper().writeValueAsString(comment);
-        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200. Request body: " + requestBody);
+        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200");
       }
       return response.getBody().getObject().getInt("id");
     } catch (UnirestException e) {
@@ -124,14 +126,17 @@ public class StashClient {
       String url = stashUrl + "/rest/api/1.0/tasks";
       ErrorReporter.get().printNotice("post " + url);
       initObjectMapper();
+
+      String requestBody = getObjectMapper().writeValueAsString(task);
+      ErrorReporter.get().printNotice("body: (application/json) " + requestBody);
+
       HttpResponse<JsonNode> response = Unirest.post(url)
           .basicAuth(credentials.getUsername(), credentials.getPassword().getPlainText())
           .header("content-type", "application/json")
           .body(task)
           .asJson();
       if (response.getStatus() != 201) {
-        String requestBody = getObjectMapper().writeValueAsString(task);
-        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200. Request body: " + requestBody);
+        throw new IOException("Wrong response status " + response.getStatus() + ", expected 200");
       }
       return response.getBody().getObject().getInt("id");
     } catch (UnirestException e) {
