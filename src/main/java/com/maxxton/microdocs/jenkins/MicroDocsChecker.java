@@ -54,16 +54,18 @@ public class MicroDocsChecker extends Builder {
   private final String microDocsReportFile;
   private final String microDocsProjectName;
   private final String microDocsGroupName;
+  private final String microDocsEnvironments;
   private final String microDocsSourceFolder;
   private final boolean microDocsFailBuild;
   private final boolean microDocsPublish;
   private final boolean microDocsNotifyPullRequest;
 
   @DataBoundConstructor
-  public MicroDocsChecker(String microDocsReportFile, String microDocsProjectName, String microDocsGroupName, String microDocsSourceFolder, boolean microDocsFailBuild, boolean microDocsPublish, boolean microDocsNotifyPullRequest) {
+  public MicroDocsChecker(String microDocsReportFile, String microDocsProjectName, String microDocsGroupName, String microDocsEnvironments, String microDocsSourceFolder, boolean microDocsFailBuild, boolean microDocsPublish, boolean microDocsNotifyPullRequest) {
     this.microDocsReportFile = microDocsReportFile;
     this.microDocsProjectName = microDocsProjectName;
     this.microDocsGroupName = microDocsGroupName;
+    this.microDocsEnvironments = microDocsEnvironments;
     this.microDocsFailBuild = microDocsFailBuild;
     this.microDocsPublish = microDocsPublish;
     this.microDocsSourceFolder = microDocsSourceFolder;
@@ -80,6 +82,10 @@ public class MicroDocsChecker extends Builder {
 
   public String getMicroDocsGroupName() {
     return microDocsGroupName;
+  }
+
+  public String getMicroDocsEnvironments() {
+    return microDocsEnvironments;
   }
 
   public String getMicroDocsSourceFolder() {
@@ -102,8 +108,10 @@ public class MicroDocsChecker extends Builder {
   public static class Descriptor extends BuildStepDescriptor<Builder> {
 
     private String microDocsServerUrl;
+    private String microDocsServerCredentialsId;
     private String microDocsStashUrl;
     private String microDocsStashCredentialsId;
+    private boolean microDocsRandomQuote;
 
     public Descriptor() {
       this(true);
@@ -112,6 +120,10 @@ public class MicroDocsChecker extends Builder {
     protected Descriptor(boolean load) {
       if (load)
         load();
+    }
+
+    public String getMicroDocsServerCredentialsId() {
+      return microDocsServerCredentialsId;
     }
 
     public String getMicroDocsServerUrl() {
@@ -126,6 +138,23 @@ public class MicroDocsChecker extends Builder {
       return microDocsStashCredentialsId;
     }
 
+    public boolean isMicroDocsRandomQuote() {
+      return microDocsRandomQuote;
+    }
+
+    public ListBoxModel doFillMicroDocsServerCredentialsIdItems(@AncestorInPath Item project) {
+
+      if (project != null && project.hasPermission(Item.CONFIGURE)) {
+        return new StandardListBoxModel().withEmptySelection()
+            .withMatching(new MicroDocsCredentialsMatcher(), CredentialsProvider.lookupCredentials(StandardCredentials.class, project, ACL.SYSTEM, new ArrayList<DomainRequirement>()));
+
+      } else if (Jenkins.getInstance().hasPermission(Item.CONFIGURE)) {
+        return new StandardListBoxModel().withEmptySelection()
+            .withMatching(new MicroDocsCredentialsMatcher(), CredentialsProvider.lookupCredentials(StandardCredentials.class, Jenkins.getInstance(), ACL.SYSTEM, new ArrayList<DomainRequirement>()));
+      }
+
+      return new StandardListBoxModel();
+    }
     public ListBoxModel doFillMicroDocsStashCredentialsIdItems(@AncestorInPath Item project) {
 
       if (project != null && project.hasPermission(Item.CONFIGURE)) {
@@ -156,6 +185,7 @@ public class MicroDocsChecker extends Builder {
       // to persist global configuration information,
       // set that to properties and call save().
       microDocsServerUrl = formData.getString("microDocsServerUrl");
+      microDocsServerCredentialsId = formData.getString("microDocsServerCredentialsId");
       microDocsStashUrl = formData.getString("microDocsStashUrl");
       microDocsStashCredentialsId = formData.getString("microDocsStashCredentialsId");
 
@@ -217,17 +247,24 @@ public class MicroDocsChecker extends Builder {
       return false;
     }
 
-    CheckResponse response = null;
+    UsernamePasswordCredentials credentials = getCredentials(UsernamePasswordCredentials.class, build.getProject(), descriptor.getMicroDocsStashCredentialsId());
+    ServerConfiguration configuration = new ServerConfiguration(descriptor.getMicroDocsServerUrl(), credentials != null ? credentials.getUsername(): null, credentials != null ? credentials.getPassword().getPlainText() : null);
+
+    CheckResponse response;
     if (microDocsPublish) {
-      response = MicroDocsPublisher.publishProject(new ServerConfiguration(descriptor.getMicroDocsServerUrl()), reportFile, microDocsProjectName, microDocsGroupName, null, microDocsFailBuild);
+      response = MicroDocsPublisher.publishProject(configuration, reportFile, microDocsProjectName, microDocsGroupName, null, microDocsFailBuild, microDocsEnvironments);
     } else {
-      response = MicroDocsPublisher.checkProject(new ServerConfiguration(descriptor.getMicroDocsServerUrl()), reportFile, microDocsProjectName);
+      response = MicroDocsPublisher.checkProject(configuration, reportFile, microDocsProjectName, microDocsEnvironments);
     }
 
     boolean isOk = MicroDocsPublisher.printCheckResponse(response, new File(microDocsSourceFolder));
 
     if (this.microDocsNotifyPullRequest) {
-      commentToStash(response, build, listener);
+      if(descriptor.getMicroDocsStashUrl() != null && !descriptor.getMicroDocsStashUrl().isEmpty()) {
+        commentToStash(response, build, listener);
+      }else{
+        ErrorReporter.get().printNotice("Cannot publish results to Stash: Stash url is missing");
+      }
     }
 
     if (!isOk && this.microDocsFailBuild) {
@@ -240,7 +277,7 @@ public class MicroDocsChecker extends Builder {
   private void commentToStash(CheckResponse response, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException {
     Descriptor descriptor = (Descriptor) getDescriptor();
     BuildInfo buildInfo = getBuildInfo(build, listener);
-    UsernamePasswordCredentials usernamePasswordCredentials = getCredentials(UsernamePasswordCredentials.class, build.getProject());
+    UsernamePasswordCredentials usernamePasswordCredentials = getCredentials(UsernamePasswordCredentials.class, build.getProject(), descriptor.getMicroDocsStashCredentialsId());
 
     StashClient stashClient = new StashClient(descriptor.getMicroDocsStashUrl(), usernamePasswordCredentials);
 
@@ -276,8 +313,10 @@ public class MicroDocsChecker extends Builder {
             }
             comment += message + "\n";
           }
-          String quote = QuoteGenerator.randomQuote();
-          comment += "\n> " + quote;
+          if(descriptor.isMicroDocsRandomQuote()) {
+            String quote = QuoteGenerator.randomQuote();
+            comment += "\n> " + quote;
+          }
 
           int commentId = stashClient.postPullRequestComment(buildInfo, comment, file, lineNumber);
           for (CheckProblem problem : problemsMap.get(file).get(lineNumber)) {
@@ -292,6 +331,12 @@ public class MicroDocsChecker extends Builder {
     EnvVars envVars = build.getEnvironment(listener);
     String pullRequestUrl = envVars.get("PULL_REQUEST_URL");
     String pullRequestId = envVars.get("PULL_REQUEST_ID");
+    if(pullRequestUrl == null || pullRequestUrl.isEmpty()){
+      throw new ConfigurationException("variable 'PULL_REQUEST_URL' is missing or empty");
+    }
+    if(pullRequestId == null || pullRequestId.isEmpty()){
+      throw new ConfigurationException("variable 'PULL_REQUEST_ID' is missing or empty");
+    }
 
     return new BuildInfo(
         getProjectKey(pullRequestUrl),
@@ -335,7 +380,7 @@ public class MicroDocsChecker extends Builder {
    * @param project The hierarchical project context within which the credentials are searched for.
    * @return The first credentials of the given type that are found withing the project hierarchy, or null otherwise.
    */
-  private <T extends Credentials> T getCredentials(final Class<T> clazz, final Item project) {
+  private <T extends Credentials> T getCredentials(final Class<T> clazz, final Item project, String credentialsId) {
 
     T credentials = null;
 
@@ -344,7 +389,6 @@ public class MicroDocsChecker extends Builder {
     }
     Descriptor descriptor = (Descriptor) getDescriptor();
 
-    String credentialsId = descriptor.getMicroDocsStashCredentialsId();
     if (StringUtils.isNotBlank(credentialsId) && clazz != null && project != null) {
       credentials = CredentialsMatchers.firstOrNull(lookupCredentials(clazz, project, ACL.SYSTEM, new ArrayList<DomainRequirement>()), CredentialsMatchers.withId(credentialsId));
     }

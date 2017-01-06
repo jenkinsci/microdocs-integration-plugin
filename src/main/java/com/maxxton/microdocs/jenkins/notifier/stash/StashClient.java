@@ -9,6 +9,7 @@ import com.mashape.unirest.http.JsonNode;
 import com.mashape.unirest.http.ObjectMapper;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
+import com.mashape.unirest.request.HttpRequestWithBody;
 import com.maxxton.microdocs.crawler.ErrorReporter;
 import com.maxxton.microdocs.jenkins.notifier.BuildInfo;
 import com.maxxton.microdocs.jenkins.notifier.stash.domain.*;
@@ -72,7 +73,7 @@ public class StashClient {
       String unixPath = path.replaceAll("\\\\", "/");
       anchor.setPath(unixPath);
       anchor.setSourcePath(unixPath);
-      if (lineNumber != null) {
+      if (lineNumber != null && lineNumber > 0) {
         anchor.setLine(lineNumber);
         anchor.setLineType(StashLineType.CONTEXT);
       }
@@ -83,11 +84,19 @@ public class StashClient {
       String url = stashUrl + "/rest/api/1.0/projects/" + buildInfo.getProjectKey() + "/repos/" + buildInfo.getRepositoryName() + "/pull-requests/" + buildInfo.getPullRequestId() + "/comments";
       ErrorReporter.get().printNotice("post " + url);
       initObjectMapper();
-      HttpResponse<JsonNode> response = Unirest.post(url)
-          .basicAuth(credentials.getUsername(), credentials.getPassword().getPlainText())
-          .header("content-type", "application/json")
+
+      String requestBody = getObjectMapper().writeValueAsString(comment);
+      ErrorReporter.get().printNotice("body: (application/json) " + requestBody);
+
+      HttpRequestWithBody request = Unirest.post(url)
+          .header("content-type", "application/json");
+      if(credentials != null) {
+        request.basicAuth(credentials.getUsername(), credentials.getPassword().getPlainText());
+      }
+      HttpResponse<JsonNode> response = request
           .body(comment)
           .asJson();
+
       if (response.getStatus() != 201) {
         throw new IOException("Wrong response status " + response.getStatus() + ", expected 200");
       }
@@ -117,6 +126,10 @@ public class StashClient {
       String url = stashUrl + "/rest/api/1.0/tasks";
       ErrorReporter.get().printNotice("post " + url);
       initObjectMapper();
+
+      String requestBody = getObjectMapper().writeValueAsString(task);
+      ErrorReporter.get().printNotice("body: (application/json) " + requestBody);
+
       HttpResponse<JsonNode> response = Unirest.post(url)
           .basicAuth(credentials.getUsername(), credentials.getPassword().getPlainText())
           .header("content-type", "application/json")
@@ -132,9 +145,7 @@ public class StashClient {
   }
 
   private static void initObjectMapper() {
-    com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
-    jacksonObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    jacksonObjectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper = getObjectMapper();
     Unirest.setObjectMapper(new ObjectMapper() {
 
       public <T> T readValue(String value, Class<T> valueType) {
@@ -153,6 +164,13 @@ public class StashClient {
         }
       }
     });
+  }
+
+  private static com.fasterxml.jackson.databind.ObjectMapper getObjectMapper(){
+    com.fasterxml.jackson.databind.ObjectMapper jacksonObjectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    jacksonObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    jacksonObjectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    return jacksonObjectMapper;
   }
 
 }

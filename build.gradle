@@ -1,5 +1,5 @@
 group 'com.maxxton'
-version '1.0'
+version '1.2'
 
 buildscript {
     repositories {
@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    compile ("com.maxxton.microdocs:microdocs-core-java:1.0")
+    compile ("com.maxxton:microdocs-core-java:1.6.2")
     compile ("com.fasterxml.jackson.core:jackson-databind:2.7.5")
     compile ("com.mashape.unirest:unirest-java:1.4.9")
 
@@ -31,7 +31,7 @@ dependencies {
 jenkinsPlugin {
 //    coreVersion = "1.498"
     coreVersion = "1.609.3"
-    displayName = "Integration with the MicroDocs server for publishing and detecting compatibility problems"
+    displayName = "MicroDocs Integration Plugin"
     url = "http://wiki.jenkins-ci.org/display/JENKINS/MICRODOCS+INTEGRATION+PLUGIN"
     gitHubUrl = "https://github.com/MaxxtonGroup/microdocs-integration-plugin"
     shortName = "microdocs-integration"

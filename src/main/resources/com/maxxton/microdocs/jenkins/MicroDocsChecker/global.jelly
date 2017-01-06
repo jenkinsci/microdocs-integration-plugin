@@ -5,11 +5,17 @@
              description="Add MicroDocs server URL (eg. http://localhost:8000)">
       <f:textbox/>
     </f:entry>
+    <f:entry title="${%Credentials}" field="microDocsServerCredentialsId">
+      <c:select/>
+    </f:entry>
     <f:entry title="Stash Root Url" field="microDocsStashUrl">
       <f:textbox/>
     </f:entry>
     <f:entry title="${%Credentials}" field="microDocsStashCredentialsId">
       <c:select/>
+    </f:entry>
+    <f:entry title="Post a random Quote" field="microDocsRandomQuote">
+      <f:checkbox/>
     </f:entry>
   </f:section>
 </j:jelly>
